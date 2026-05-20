@@ -1,0 +1,229 @@
+
+
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+    <meta name="author" content="Al Desrahim">
+    
+    <title>Jadwal IDM</title>
+    
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+        .is-today {
+            border: 2px solid transparent;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <v-app v-cloak>
+            <v-main>
+                <v-container class="mt-5">
+                    <v-row>
+                        <v-col cols="12" md="8">
+                            <v-card elevation="2" tile>
+                                <v-container>
+                                    <v-card-title>Form Jadwal</v-card-title>
+                                    <v-card-text>
+                                        <v-form v-model="valid">
+                                            <v-select 
+                                                v-model="selectedDay" 
+                                                :items="days" 
+                                                item-text="value" 
+                                                item-value="id"
+                                                label="Hari mulai" 
+                                                required>
+                                            </v-select>
+                                            <v-text-field 
+                                                v-model="schedule"
+                                                label="Kode Jadwal"
+                                                hint="[ 0: Libur, 1: Pagi, 2: Siang, 3: Malam, M: Middle, P: Pending ]"
+                                                :rules="scheduleRules"
+                                                counter="31"
+                                                persistent-hint
+                                                required>
+                                            </v-text-field>
+                                            <v-btn
+                                                class="mt-5"
+                                                color="primary"
+                                                :disabled="!valid"
+                                                @click="submit"
+                                            >
+                                                Proses
+                                            </v-btn>
+                                            <v-btn
+                                                v-show="results.length"
+                                                class="mt-5"
+                                                color="secondary"
+                                                :disabled="onCopy"
+                                                @click="toClipboard"
+                                            >
+                                                Copy gambar
+                                            </v-btn>
+                                        </v-form>
+                                    </v-card-text>
+                                </v-container>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="4">
+                            <v-card ref="result" tile elevation="2" v-show="results.length">
+                                <v-container>
+                                    <v-card-title>Hasil</v-card-title>
+                                    <v-card-text style="display: table;">
+                                        <div class="d-flex mb-3" style="flex-wrap: wrap;gap: 3px;">
+                                            <v-chip
+                                                v-for="(s, i) in schedules"
+                                                :key="i"
+                                                :color="s.color"
+                                                class="black--text"
+                                                pill
+                                                small
+                                            >
+                                                {{ s.value }}: {{ s.count }}
+                                            </v-chip>
+                                        </div>
+                                        <div 
+                                            v-for="r in results"
+                                            class="d-flex justify-space-between"
+                                            :class="{ 'is-today': r.isToday }"
+                                            style="font-family: 'Courier New', Courier, monospace;font-size: 1.3em;width: 100%;padding: 0 5px"
+                                            :style="{ color: r.schedule.color , borderColor: r.schedule.color}"
+                                        >
+                                            <div style="width: 30%;" class="text-left">
+                                                {{ r.date }}
+                                            </div>
+                                            <div style="width: 35%;" class="text-right">
+                                                {{ r.day.value }}
+                                            </div>
+                                            <div style="width: 35%;" class="text-right">
+                                                {{ r.schedule.value }}
+                                            </div>
+                                        </div>
+                                    </v-card-text>
+                                </v-container>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                </v-container>
+            </v-main>
+        </v-app>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.0/html2canvas.min.js" integrity="sha512-UcDEnmFoMh0dYHu0wGsf5SKB7z7i5j3GuXHCnb3i4s44hfctoLihr896bxM0zL7jGkcHQXXrJsFIL62ehtd6yQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        var app = new Vue({
+            el: '#app',
+            vuetify: new Vuetify({
+                theme: { dark: true }
+            }),
+            data: {
+                onCopy: false,
+                hideAction: false,
+                valid: false,
+                schedule: '',
+                scheduleRules: [
+                    v => !!v || 'Wajib diisi.',
+                    v => /^[0-3|M|P]+$/.test(v) || 'Hanya menerima 0-3, M, P',
+                    v => v.length <= 31 || 'Maks 31 karakter'
+                ],
+                schedules: [
+                    { id: 0, value: 'Libur', color: '#4CAF50', count: 0 }, 
+                    { id: 1, value: 'Pagi', color: '#03A9F4', count: 0 }, 
+                    { id: 2, value: 'Siang', color: '#FFEB3B', count: 0 }, 
+                    { id: 3, value: 'Malam', color: '#F44336', count: 0 }, 
+                    { id: 'M', value: 'Middle', color: '#ED8936', count: 0 }, 
+                    { id: 'P', value: 'Pending', color: '#ED64A6', count: 0 },
+                ],
+                selectedDay: 0,
+                days: [
+                    { id: 0, value: 'Senin' },
+                    { id: 1, value: 'Selasa' },
+                    { id: 2, value: 'Rabu' },
+                    { id: 3, value: 'Kamis' },
+                    { id: 4, value: 'Jumat' },
+                    { id: 5, value: 'Sabtu' },
+                    { id: 6, value: 'Minggu' },
+                ],
+                results: [],
+                strPad: {
+                    date: 5,
+                    day: 9,
+                    schedule: 5
+                }
+            },
+            mounted() {
+                if (localStorage.jadwalIDM_selectedDay) {
+                    this.selectedDay = parseInt(localStorage.jadwalIDM_selectedDay);
+                }
+                if (localStorage.jadwalIDM_schedule) {
+                    this.schedule = localStorage.jadwalIDM_schedule;
+                    this.submit();
+                }
+            },
+            methods: {
+                submit() {
+                    this.results = [];
+                    this.schedules.map((v, i) => { this.schedules[i].count = 0 });
+
+                    let dateStart = 1;
+                    let dayIndex = this.selectedDay;
+                    let today = new Date().getDate();
+
+                    if (this.schedule.length) {
+                        [...this.schedule].forEach(s => {
+                        		let {i, s: schedule} = this.findSchedule(s);                            
+                            if (schedule) {
+                                this.results.push({
+                                    isToday: today == dateStart,
+                                    date: dateStart++,
+                                    day: this.days[dayIndex++],
+                                    schedule: schedule,
+                                });
+
+                                this.schedules[i].count++;
+                                dayIndex = dayIndex < this.days.length ? dayIndex : 0;
+                            }
+                        });
+
+                        localStorage.jadwalIDM_selectedDay = this.selectedDay;
+                        localStorage.jadwalIDM_schedule = this.schedule;
+                    }
+                },
+                toClipboard() {
+                    let t = this;
+                    t.onCopy = !t.onCopy;
+                    html2canvas(this.$refs.result.$el).then(canvas => {
+                        return canvas.toBlob(function(blob) { 
+                            const item = new ClipboardItem({ "image/png": blob });
+                            return navigator.clipboard.write([item])
+                        });
+                    }).finally(() => {
+                        t.onCopy = !t.onCopy;
+                    })
+                },
+                findSchedule(input) {
+                		for (const [i, s] of this.schedules.entries()) {
+                    		if (s.id == input) {
+                        		return {i, s};
+                        }
+                    }
+                    
+                    return {i: null, s: null};
+                }
+            }
+        })
+    </script>
+</body>
+
+</html>
